@@ -11,6 +11,7 @@ import os
 import pkg_resources
 import sys
 import time
+from collections import OrderedDict
 
 from py.xml import html, raw
 
@@ -27,7 +28,7 @@ else:
 
 
 def pytest_addhooks(pluginmanager):
-    from pytest_html import newhooks
+    from tests.libtest.util.pytest_html.pytest_html import newhooks
     pluginmanager.addhooks(newhooks)
 
 
@@ -72,18 +73,26 @@ class HTMLReport(object):
         self.errors = self.failed = 0
         self.passed = self.skipped = 0
         self.xfailed = self.xpassed = 0
+        self.tempDict = OrderedDict()
+        self.test_overview = []
 
     def _appendrow(self, result, report):
         time = getattr(report, 'duration', 0.0)
 
         additional_html = []
-        links_html = []
+        # links_html = []
 
         for extra in getattr(report, 'extra', []):
             href = None
             if extra.get('format') == extras.FORMAT_IMAGE:
                 href = '#'
-                image = 'data:image/png;base64,%s' % extra.get('content')
+                image = '%s' % extra.get('content')
+                if os.path.isfile(image):
+                    with open(image, "rb") as image_file:
+                        image_file = b64encode(image_file.read())
+                        image = 'data:image/png;base64,%s' % image_file
+                else:
+                    image = 'data:image/png;base64,%s' % image
                 additional_html.append(html.div(
                     html.a(html.img(src=image), href="#"),
                     class_='image'))
@@ -97,13 +106,13 @@ class HTMLReport(object):
             elif extra.get('format') == extras.FORMAT_URL:
                 href = extra.get('content')
 
-            if href is not None:
-                links_html.append(html.a(
-                    extra.get('name'),
-                    class_=extra.get('format'),
-                    href=href,
-                    target='_blank'))
-                links_html.append(' ')
+            # if href is not None:
+            #     links_html.append(html.a(
+            #         extra.get('name'),
+            #         class_=extra.get('format'),
+            #         href=href,
+            #         target='_blank'))
+            #     links_html.append(' ')
 
         if 'Passed' not in result:
 
@@ -129,7 +138,7 @@ class HTMLReport(object):
             html.td(result, class_='col-result'),
             html.td(report.nodeid, class_='col-name'),
             html.td('%.2f' % time, class_='col-duration'),
-            html.td(links_html, class_='col-links'),
+            # html.td(links_html, class_='col-links'),
             html.td(additional_html, class_='extra')],
             class_=result.lower() + ' results-table-row'))
 
@@ -158,6 +167,7 @@ class HTMLReport(object):
             self.skipped += 1
 
     def pytest_runtest_logreport(self, report):
+        self._update_dict(report.nodeid, report.when, report.outcome)
         if report.passed:
             if report.when == 'call':
                 self.append_pass(report)
@@ -204,6 +214,28 @@ class HTMLReport(object):
             html.span('%i unexpected passes' % self.xpassed,
                       class_='failed'), '.')]
 
+        self._create_overview()
+        overview = [
+            html.h2('Overview'),
+            html.table(
+                [
+                    html.thead(
+                        html.tr(
+                            [
+                                html.th('Test', col='name'),
+                                html.th('Setup', col='setup'),
+                                html.th('Call', col='call'),
+                                html.th('Teardown', col='teardown'),
+                            ]
+                        ),
+                        id='overview-table-head'
+                    ),
+                    html.tbody(*self.test_overview, id='overview-table-body')
+                ],
+                id='overview-table'
+            )
+        ]
+
         results = [html.h2('Results'), html.table([html.thead(
             html.tr([
                 html.th('Result',
@@ -213,7 +245,8 @@ class HTMLReport(object):
                 html.th('Duration',
                         class_='sortable numeric',
                         col='duration'),
-                html.th('Links')]), id='results-table-head'),
+                # html.th('Links')
+            ]), id='results-table-head'),
             html.tbody(*self.test_logs, id='results-table-body')],
             id='results-table')]
 
@@ -241,6 +274,7 @@ class HTMLReport(object):
                 id='environment'))
 
         body.extend(summary)
+        body.extend(overview)
         body.extend(results)
 
         doc = html.html(head, body)
@@ -252,3 +286,32 @@ class HTMLReport(object):
     def pytest_terminal_summary(self, terminalreporter):
         terminalreporter.write_sep('-', 'generated html file: %s' % (
             self.logfile))
+
+    def _update_dict(self, nodeid, when, outcome):
+        d = self.tempDict.get(nodeid, None)
+        if not d:
+            d = OrderedDict({when: outcome})
+        else:
+            d.update({when: outcome})
+        self.tempDict.update({nodeid: d})
+
+    def _create_overview(self):
+        for node, results in self.tempDict.iteritems():
+            table = [
+                        html.td(node, class_='col-name')
+            ]
+
+            res = [
+                html.td(
+                    result.capitalize(),
+                    class_='%s col-%s' % (result.lower(), when)
+                )
+                for when, result in results.iteritems()
+                ]
+            table.extend(res)
+            self.test_overview.append(
+                html.tr(
+                    table
+                )
+            )
+

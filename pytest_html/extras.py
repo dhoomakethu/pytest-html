@@ -20,7 +20,6 @@ def html(content):
 def image(content, name='Image'):
     return extra(content, FORMAT_IMAGE, name)
 
-
 def json(content, name='JSON'):
     return extra(content, FORMAT_JSON, name)
 

@@ -37,7 +37,7 @@ table {
 /******************************
  * TEST RESULT COLORS
  ******************************/
-span.passed, .passed .col-result {
+span.passed, .passed .col-result{
 	color: green;
 }
 span.skipped, span.xfailed, .skipped .col-result, .xfailed .col-result {
@@ -76,6 +76,7 @@ span.error, span.failed, span.xpassed, .failed .col-result, .xpassed .col-result
 #results-table th {
 	font-weight: bold
 }
+
 
 /*------------------
  * 2. Extra
@@ -144,4 +145,45 @@ div.image img {
 .desc.active .sort-icon {
 	/*finish triangle*/
 	border-top: 8px solid #999;
+}
+/******************************
+ * OVERVIEW RESULT COLORS
+ ******************************/
+.failed, .xpassed, .error{
+  color: red;
+}
+.passed{
+  color: green;
+}
+.skipped, .xfailed{
+  color: orange;
+}
+
+/******************************
+ * OVERVIEW TABLE
+ *
+ * 1. Table Layout
+ *
+ ******************************/
+
+/*------------------
+ * 1. Table Layout
+ 	color: #999;
+ *------------------*/
+
+#overview-table {
+	border: 1px solid #e6e6e6;
+	color: #999;
+	font-size: 12px;
+	width: 100%
+}
+
+#overview-table th, #overview-table td {
+	padding: 5px;
+	border: 1px solid #E6E6E6;
+
+	text-align: left
+}
+#overview-table th {
+	font-weight: bold
 }
